@@ -1,174 +1,156 @@
 #include <Ultrasonic.h>
-#include <Servo.h>
+#include <ESP32Servo.h>
 
-#define trigger 4
-#define echo 5
+#define trigger 5
+#define echo 18
+#define servoPin 4
 
-#define IN1_A 9
-#define IN2_A 10
-#define EN_A 11
+#define IN1 25
+#define IN2 26
+#define ENA 32
 
-#define IN1_B 3
-#define IN2_B 12
+#define IN3 27
+#define IN4 14
+#define ENB 33
+
+#define DistMin 20
+
 #define ultrasonicInterval 1000
 
 Ultrasonic ultrassom(trigger, echo);
 Servo servo;
 
 int pos;
-int pwmA = 0;
 String flag = "";
-//bool init = false;
-int init = 1;
+bool started = 1;
 String previousDirection = "Left";
-int velMotorA = 0;
 long distR, distL, distF;
-unsigned long currentMillis = 0;
+unsigned long lastMoveTime = 0;
+float valuesCM[3];
+
+void forward(int velocidade = 200);
+void turnLeft(int velocidade = 200);
+void turnRight(int velocidade = 200);
+void stopMotors();
+float* moveScanner();
+long readUltrasonic();
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Iniciando a serial...");
+  Serial.println("Iniciando...");
 
-  pinMode(IN1_A, OUTPUT);
-  pinMode(IN2_A, OUTPUT);
-  pinMode(EN_A, OUTPUT);
-  pinMode(IN1_A , OUTPUT);
-  pinMode(IN2_A, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
 
-  servo.attach(6);
-  servo.write(0);
+  servo.attach(servoPin);
+  servo.write(90);
 
-  digitalWrite(IN1_A, LOW);
-  digitalWrite(IN2_A, LOW);
-
-  analogWrite(EN_A, velMotorA);
-
+  stopMotors();
 }
 
 void loop() {
-  float* direction =  moveScanner();
-  
-  float maxDirection1 = max(direction[0], direction[1]);
-  float maxDirection = max(maxDirection1, direction[2]);
+  float* direction = moveScanner();
 
+  float maxDir1 = max(direction[0], direction[1]);
+  float maxDir = max(maxDir1, direction[2]);
 
-  if(init == 1 || (previousDirection == "Left" && direction[0] < DistMin) || (previousDirection == "Right" && direction[2] < DistMin)){ 
-    if(maxDirection == maxDirection1){
-      flag = "Forward";
-    }
-    else if(direction[2] == maxDirection){
-      flag = "Left";
-    } else if(direction[0] == maxDirection1){
-      flag = "Right";
-    }
-    init = 0;
+  if (started == 1 || 
+     (previousDirection == "Left" && direction[0] < DistMin) || 
+     (previousDirection == "Right" && direction[2] < DistMin)) { 
+
+    if (maxDir == direction[1]) flag = "Forward";
+    else if (maxDir == direction[0]) flag = "Right";
+    else flag = "Left";
+
+    started = 0;
   } else {
     flag = previousDirection;
   }
 
-  switch(flag){
-    unsigned long currentTime = 0;
-    case "Right": //Right
-      if(currentTime - millis() > 2000){
-        turnRight();
-        currentTime = millis();
-      }
-      previousDirection = "Right";
-      break;
-    case "Left": //Left
-      turnLeft();
-      previousDirection = "Left";
-      break;
+  if (millis() - lastMoveTime > 2000) {
+    if (flag == "Left") turnLeft();
+    else if (flag == "Right") turnRight();
+    else forward();
+    lastMoveTime = millis();
   }
 
-  stop();
+  stopMotors();
   delay(100);
-  unsigned long currentTimeFront = 0;
-  if(currentTimeFront - millis() > 2000){
-    forward();
-    currentTimeFront = millis();
-  }
-
-  stop();
-  delay(100);
-
-  //scan
 }
 
-long readUltrasonic(){
-  long cmMsec;
-  cmMsec = ultrassom.read(CM);
-
-  Serial.print("Distancia em cm: ");
-  Serial.println(cmMsec);
-
-  return cmMsec;
+long readUltrasonic() {
+  long cm = ultrassom.read(CM);
+  Serial.print("Distancia (cm): ");
+  Serial.println(cm);
+  return cm;
 }
 
-float* moveScanner(){
-  //o scanner deve medir a distância à esquerda, direita e frente do robô para tomar a decisão de mover (range de 180 graus)
-  //move 90º para a esquerda
-  //o centro possui 0 graus
-  //move 90º para a direita
-
-  Serial.println("0º");
+float* moveScanner() {
+  // Direita
+  servo.write(0);
+  delay(500);
   distR = readUltrasonic();
 
-  for (pos = 0; pos < 90; pos++) {
-    servo.write(pos);
-    delay(15); 
-  }
-
-  Serial.println("90º");
+  // Frente
+  servo.write(90);
+  delay(500);
   distF = readUltrasonic();
-  delay(2000);
 
-  for (pos = 90; pos < 180; pos++) {
-    servo.write(pos);
-    delay(15); 
-  }
-
-  Serial.println("180º");
+  // Esquerda
+  servo.write(180);
+  delay(500);
   distL = readUltrasonic();
 
-  for (pos = 180; pos >= 0; pos--) {
-    servo.write(pos);
-    delay(15);
-  }
+  // Volta ao centro
+  servo.write(90);
+  delay(200);
 
-  delay(2000);
+  valuesCM[0] = distR;
+  valuesCM[1] = distF;
+  valuesCM[2] = distL;
 
-  float valuesCM[] = {distR, distF, distL};
   return valuesCM;
-
 }
 
-void turnLeft(){
-
+void forward(int velocidade) {
+  Serial.println("Seguindo em frente");
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENA, velocidade);
+  analogWrite(ENB, velocidade);
 }
 
-void turnRight(){
-
+void turnLeft(int velocidade) {
+  Serial.println("Virando à esquerda");
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENA, velocidade);
+  analogWrite(ENB, velocidade);
 }
 
-void forward(){
-
+void turnRight(int velocidade) {
+  Serial.println("Virando à direita");
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENA, velocidade);
+  analogWrite(ENB, velocidade);
 }
 
-void backward(){
-
+void stopMotors() {
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
 }
-
-void moveMotor(){
-  analogWrite(EN_A, 255); //speed 0 - 255
-  digitalWrite(IN1_A, LOW);
-  digitalWrite(IN1_B, HIGH);
-}
-
-void stop(){
-  analogWrite(EN_A, 0);
-  digitalWrite(IN1_A, LOW);
-  digitalWrite(IN1_B, LOW);
-}
-
-
