@@ -1,7 +1,5 @@
-# roomba_coppeliasim_test.py
 # Requisitos: pip install coppeliasim-zmqremoteapi-client
 # Inicie o CoppeliaSim com o serviço ZMQ habilitado (menu: Remote API → "Enable remote API server").
-# Ajuste os nomes dos objetos da sua cena abaixo.
 
 import time
 import math
@@ -9,16 +7,14 @@ import random
 from enum import Enum, auto
 from coppeliasim_zmqremoteapi_client import RemoteAPIClient
 import matplotlib.pyplot as plt
-plt.ion()   # modo interativo ON
+plt.ion()   
 
-# =========================
-# CONFIGURE AQUI (nomes/parametros)
-# =========================
-NOME_BASE                = '/pure_base'             # objeto raiz do robô
-NOME_JUNTA_RL            = '/lr_wheel_joint'        # roda esquerda traseira
-NOME_JUNTA_RR            = '/rr_wheel_joint'       # roda direita traseira
-NOME_JUNTA_FL            = '/lf_wheel_joint'       # se não tiver 4WD, deixe None
-NOME_JUNTA_FR            = '/rf_wheel_joint'      # se não tiver 4WD, deixe None
+
+NOME_BASE                = '/pure_base'             
+NOME_JUNTA_RL            = '/lr_wheel_joint'        
+NOME_JUNTA_RR            = '/rr_wheel_joint'       
+NOME_JUNTA_FL            = '/lf_wheel_joint'       
+NOME_JUNTA_FR            = '/rf_wheel_joint'      
 NOME_JUNTA_SERVO         = '/support_joint'              # junta que gira o sensor
 NOME_SENSOR_PROX         = '/proximitySensor'             # sensor de proximidade (frontal no servo)
 
@@ -50,8 +46,6 @@ class SimHardware:
         self.client = RemoteAPIClient()
         self.sim = self.client.getObject('sim')
 
-        # Carrega cena externamente se quiser (ou carregue por fora e só conecte)
-        # Se já estiver com a cena aberta, comente este bloco:
         if scene_file:
             # Para recarregar limpo:
             self.sim.stopSimulation()
@@ -69,7 +63,7 @@ class SimHardware:
 
         # Pega handles
         self.h_base   = self.sim.getObject(NOME_BASE)
-        # --- Graph ao vivo (trajetória XY) ---
+        # --- Graph ao vivo (trajetória XY) no Coppelia ---
         self.graph = None
         try:
             self.graph = self.sim.getObject('/traj_graph')
@@ -206,7 +200,6 @@ class SimHardware:
         self.set_wheel_speeds(0.0, 0.0)
 
     def step_sleep(self):
-        # Em ZMQ Remote API, a sim roda no tempo dela; um sleep curto ajuda o loop.
         time.sleep(CONTROL_DT)
 
     # --- Utilidades ---
@@ -278,7 +271,7 @@ class RoombaController:
     # ------- Estados -------
     def _state_spiral(self, d_front: float):
         self.hw.set_servo_angle(0)
-        # parâmetros da espiral (os mesmos do exemplo)
+        # parâmetros da espiral
         v0        = 0.10        # m/s
         w_initial = 3.0         # rad/s (default 3.0)
         w_final   = 0.50        # rad/s (default 0.5)
@@ -294,9 +287,9 @@ class RoombaController:
         # tempo decorrido
         t = time.time() - self._spiral_t0
 
-        # equação da espiral — igual ao teu exemplo
+        # equação da espiral
         w = w_final + (w_initial - w_final) * math.exp(-beta * t)
-        v = v0 * (1.0 + 0.4 * (t / 20.0))   # opcional e suave
+        v = v0 * (1.0 + 0.4 * (t / 20.0))  
 
         # velocidades das rodas
         w_left  = (v - 0.5 * w * L) / r
@@ -306,7 +299,7 @@ class RoombaController:
         w_left  = max(-WHEEL_MAX, min(WHEEL_MAX, w_left))
         w_right = max(-WHEEL_MAX, min(WHEEL_MAX, w_right))
 
-        # aplica às rodas do simulador via wrapper
+
         self.hw.set_wheel_speeds(v_left=v - (w * L / 2),
                                 v_right=v + (w * L / 2))
 
@@ -343,13 +336,13 @@ class RoombaController:
 
     def _state_wall_follow(self, d_front: float):
 
-        # --- 1) Ângulo fixo do sensor (+60° esquerda, -60° direita) ---
+        # Ângulo fixo do sensor (+60° esquerda, -60° direita) ---
         side = 1 if self.wall_side == WallSide.LEFT else -1
         sensor_angle = math.radians(60.0 * side)
         self.hw.set_servo_angle(sensor_angle)
         time.sleep(0.05)
 
-        # --- 2) Leitura filtrada ---
+        # Leitura filtrada ---
         raw = self.hw.read_proximity_front()
         if raw >= 9.0:   # nada visto
             raw = None
@@ -389,12 +382,12 @@ class RoombaController:
             w_max = 0.8
             w_cmd = max(-w_max, min(w_max, w_cmd))
 
-            # --- 3) Escape se muito perto ---
+            # Escape se muito perto ---
             if self._fw_dist_filt < 0.15:
                 self._backup_escape()
                 return
 
-            # --- 4) Avança seguindo a parede ---
+            # Avança seguindo a parede ---
             self._set_vw_direct(0.12, w_cmd)
 
             if self._is_stuck():
@@ -451,7 +444,7 @@ class RoombaController:
         OMEGA_MAX = 1.2   # rad/s no grosso
         OMEGA_MIN = 0.25  # rad/s p/ vencer atrito perto do fim
         TOL = math.radians(1.5)  # tolerância de parada
-        T_TIMEOUT = 6.0          # trava de segurança
+        T_TIMEOUT = 3.0          # trava de segurança
         t0 = time.time()
 
         # rampa inicial curta (tira do estático)
@@ -478,11 +471,11 @@ class RoombaController:
             if remaining <= TOL:
                 break
             if time.time() - t0 > T_TIMEOUT:
-                # safety break para não travar se a física não deixar girar
+                # safety break
                 print("[rotate_relative] timeout; breaking")
                 break
 
-            # lei de controle simples: omega proporcional ao restante + piso
+
             omega_mag = min(OMEGA_MAX, max(OMEGA_MIN, 2.0 * remaining))  # 2.0 = ganho
             omega = direction * omega_mag
 
@@ -495,11 +488,10 @@ class RoombaController:
 
 
     def _backup(self):
-        # 1. parar um pouco
+
         self.hw.stop()
         time.sleep(0.05)
 
-        # 2. ré curta
         self.hw.set_wheel_speeds(-0.12, -0.12)
         time.sleep(0.45)
 
@@ -508,15 +500,12 @@ class RoombaController:
     def _backup_escape(self):
         print("escape wall")
 
-        # 1. parar um pouco
         self.hw.stop()
         time.sleep(0.05)
 
-        # 2. ré curta
         self.hw.set_wheel_speeds(-0.12, -0.12)
         time.sleep(0.45)
 
-        # 3. girar para longe da parede
         side = 1 if self.wall_side == WallSide.LEFT else -1
         self.hw.set_wheel_speeds(0.0, -0.25*side)
         time.sleep(0.25)
@@ -536,7 +525,7 @@ class RoombaController:
             if d > best_d:
                 best_d = d
                 best_ang = math.radians(deg)
-        # volta servo pro zero
+
         self.hw.set_servo_angle(0.0)
         return best_ang
 
@@ -575,9 +564,8 @@ class RoombaController:
 # MAIN
 # =========================
 def main():
-    # Se quiser que este script carregue sua cena, passe o caminho:
-    # Ex.: scene_file = '/mnt/data/sua_cena.ttt'  (ou .ttt/.ttm conforme versão)
-    scene_file = 'C:/Program Files/CoppeliaRobotics/CoppeliaSimEdu/scenes/CleanBot.ttt'  # ou um caminho para a sua cena
+    #scene_file = 'C:/Program Files/CoppeliaRobotics/CoppeliaSimEdu/scenes/CleanBot.ttt' 
+    scene_file = 'C:/Program Files/CoppeliaRobotics/CoppeliaSimEdu/scenes/HouseSimulationCleanBot.ttt'
 
     hw = SimHardware(scene_file=scene_file, start_paused=False)
     ctrl = RoombaController(hw)
@@ -589,7 +577,6 @@ def main():
         hw.stop()
     except KeyboardInterrupt:
         hw.stop()
-        # opcional: hw.sim.stopSimulation()
 
 if __name__ == '__main__':
     main()
