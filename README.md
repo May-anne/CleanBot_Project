@@ -23,11 +23,12 @@ O projeto neste repositório está organizado em branchs. Cada branch correspond
 ## O Design
 O design do robô foi desenvolvido através da plataforma Tinkercad. Toda a estrutura de suporte do robô será impresso em 3D.
 
-<img align="center" width="100" height="100" src="https://ibb.co/KPCWfG4">
-[Acesse o modelo no TinkerCad](https://www.tinkercad.com/things/cUoWfwwbVK0/edit?sharecode=X5aFOnu0VZ7V_3BggZSapVHzO-4BnrmAJRIiCxf0ZVU)
+<img width="1176" height="780" alt="Design do CleanBot" src="https://github.com/user-attachments/assets/8b54c83c-0d4c-41b3-9225-885756222ff9" />
+![Acesse o modelo no TinkerCad](https://www.tinkercad.com/things/cUoWfwwbVK0/edit?sharecode=X5aFOnu0VZ7V_3BggZSapVHzO-4BnrmAJRIiCxf0ZVU)
 
 ## A Simulação
 A simulação do funcionamento do robô foi feita através do simulador CoppeliaSim v4.10.0. A simulação foi desenvolvida através da integração do CoppeliaSim com o Python, através da ZMQ Remote API. Abaixo segue um vídeo demonstrativo do sistema de navegação utilizado atualmente.
+
 
 ### O Sistema de Navegação
 O robô utiliza uma máquina de estados reativa, inspirada no comportamento de um Roomba, para explorar o ambiente com autonomia. Cada estado define um padrão de movimentação baseado exclusivamente em motores, encoders e sensor ultrassônico. A troca de estados ocorre conforme a situação percebida ao redor.
@@ -38,7 +39,7 @@ O robô inicia descrevendo uma espiral crescente, ampliando gradualmente o raio 
 Objetivo: cobrir área livre e encontrar paredes/obstáculos.
 Transição: quando detecta obstáculo frontal → backup + seleção de lado → WALL_FOLLOW.
 
-#### 1) WALL_FOLLOW
+#### 2) WALL_FOLLOW
 Segue a parede:
 - mede distância lateral com o sensor em ±60°;
 - mantém distância-alvo (d_set) da parede;
@@ -49,14 +50,14 @@ Transições:
 - perdeu a parede por muito tempo → Random Walk;
 - obstáculo frontal → escape e continua no follow.
 
-#### 1) RANDOM_WALK
+#### 3) RANDOM_WALK
 Exploração livre sem dependência de yaw.
 O robô:
 - anda reto com motores iguais;
 - ao detectar obstáculo frontal → para, faz backup relativo por odometria e gira um ângulo aleatório usando somente encoders;
 - retoma movimento em um novo heading.
 
-#### 1) ESCAPE
+#### 4) ESCAPE
 Estratégia de saída quando o robô detecta falta de progresso:
 - ré mais longa,
 - varredura angular com o sensor,
