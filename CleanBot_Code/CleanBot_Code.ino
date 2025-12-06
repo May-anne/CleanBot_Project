@@ -1,55 +1,75 @@
 #include <Ultrasonic.h>
 #include <ESP32Servo.h>
 
+// ---- DIREITA TRASEIRA (A)
+#define IN1_A 27
+#define IN2_A 14
+#define EN_A  13
+bool INV_A = true;
+
+// ---- ESQUERDA TRASEIRA (B)
+#define IN1_B 32
+#define IN2_B 33
+#define EN_B  12
+bool INV_B = true;
+
+// ---- ESQUERDA DIANTEIRA (C)
+#define IN1_C 18
+#define IN2_C 19
+#define EN_C  23
+bool INV_C = true;
+
+// ---- DIREITA DIANTEIRA (D)
+#define IN1_D 4
+#define IN2_D 5
+#define EN_D  15
+bool INV_D = false;
+
+// ---- ULTRASSÔNICO
 #define trigger 5
 #define echo 18
+
+// ---- SERVO MOTOR
 #define servoPin 4
 
-#define IN1 25
-#define IN2 26
-#define ENA 32
-
-#define IN3 27
-#define IN4 14
-#define ENB 33
-
+// ---- CONSTANTES
 #define DistMin 20
-
 #define ultrasonicInterval 1000
 
+// ---- OBJETOS
 Ultrasonic ultrassom(trigger, echo);
 Servo servo;
 
+// ---- VARIÁVEIS
 int pos;
-String flag = "";
 bool started = 1;
-String previousDirection = "Left";
+float valuesCM[3];
 long distR, distL, distF;
 unsigned long lastMoveTime = 0;
-float valuesCM[3];
+String flag = "";
+String previousDirection = "Left";
 
-void forward(int velocidade = 200);
-void turnLeft(int velocidade = 200);
-void turnRight(int velocidade = 200);
-void stopMotors();
-float* moveScanner();
-long readUltrasonic();
+// ---- DEFINIÇÃO DE FUNÇÕES
+void turnRight(int s = 255);
+void turnLeft(int s = 255);
+void forward(int s = 255);
+void backward(int s = 255);
+void stopAll();
 
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Iniciando...");
+  Serial.begin(115200);
+  Serial.println("Iniciando serial...");
 
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(ENA, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
-  pinMode(ENB, OUTPUT);
+  pinMode(IN1_A, OUTPUT); pinMode(IN2_A, OUTPUT); pinMode(EN_A, OUTPUT);
+  pinMode(IN1_B, OUTPUT); pinMode(IN2_B, OUTPUT); pinMode(EN_B, OUTPUT);
+  pinMode(IN1_C, OUTPUT); pinMode(IN2_C, OUTPUT); pinMode(EN_C, OUTPUT);
+  pinMode(IN1_D, OUTPUT); pinMode(IN2_D, OUTPUT); pinMode(EN_D, OUTPUT);
 
   servo.attach(servoPin);
   servo.write(90);
 
-  stopMotors();
+  stopAll();
+  Serial.println("Robô pronto!");
 }
 
 void loop() {
@@ -78,7 +98,7 @@ void loop() {
     lastMoveTime = millis();
   }
 
-  stopMotors();
+  stopAll();
   delay(100);
 }
 
@@ -116,41 +136,64 @@ float* moveScanner() {
   return valuesCM;
 }
 
-void forward(int velocidade) {
-  Serial.println("Seguindo em frente");
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENA, velocidade);
-  analogWrite(ENB, velocidade);
+void driveMotor(int in1, int in2, int en, int speed, bool invert)
+{
+  if (invert) speed = -speed;
+
+  if (speed > 0) {
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);
+    analogWrite(en, speed);
+  }
+  else if (speed < 0) {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);
+    analogWrite(en, -speed);
+  }
+  else { 
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+    analogWrite(en, 0);
+  }
 }
 
-void turnLeft(int velocidade) {
-  Serial.println("Virando à esquerda");
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENA, velocidade);
-  analogWrite(ENB, velocidade);
+void stopAll() {
+  driveMotor(IN1_A, IN2_A, EN_A, 0, INV_A);
+  driveMotor(IN1_B, IN2_B, EN_B, 0, INV_B);
+  driveMotor(IN1_C, IN2_C, EN_C, 0, INV_C);
+  driveMotor(IN1_D, IN2_D, EN_D, 0, INV_D);
 }
 
-void turnRight(int velocidade) {
-  Serial.println("Virando à direita");
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-  analogWrite(ENA, velocidade);
-  analogWrite(ENB, velocidade);
+void forward(int s) {
+  Serial.println("Frente");
+  driveMotor(IN1_A, IN2_A, EN_A,  s, INV_A);
+  driveMotor(IN1_B, IN2_B, EN_B,  s, INV_B);
+  driveMotor(IN1_C, IN2_C, EN_C,  s, INV_C);
+  driveMotor(IN1_D, IN2_D, EN_D,  s, INV_D);
 }
 
-void stopMotors() {
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
+void backward(int s) {
+  driveMotor(IN1_A, IN2_A, EN_A, -s, INV_A);
+  driveMotor(IN1_B, IN2_B, EN_B, -s, INV_B);
+  driveMotor(IN1_C, IN2_C, EN_C, -s, INV_C);
+  driveMotor(IN1_D, IN2_D, EN_D, -s, INV_D);
 }
+
+void turnLeft(int s) {
+  Serial.println("Esquerda");
+  // direita pra frente, esquerda pra trás
+  driveMotor(IN1_A, IN2_A, EN_A,  s, INV_A);
+  driveMotor(IN1_D, IN2_D, EN_D,  s, INV_D);
+  driveMotor(IN1_B, IN2_B, EN_B, -s, INV_B);
+  driveMotor(IN1_C, IN2_C, EN_C, -s, INV_C);
+}
+
+void turnRight(int s) {
+  Serial.println("Direita");
+  // esquerda pra frente, direita pra trás
+  driveMotor(IN1_A, IN2_A, EN_A, -s, INV_A);
+  driveMotor(IN1_D, IN2_D, EN_D, -s, INV_D);
+  driveMotor(IN1_B, IN2_B, EN_B,  s, INV_B);
+  driveMotor(IN1_C, IN2_C, EN_C,  s, INV_C);
+}
+
