@@ -84,6 +84,7 @@ void readUltrasonic(int angle);
 void turnLeft(int s = 255);
 void turnRight(int s = 255);
 void scan();
+void debugPulsosGiro(int tempo_ms = 1000, int speed = 150);
 
 Servo servo;
 
@@ -128,8 +129,7 @@ void setup() {
 
 void loop() {
   //fazendo testes
-  turnLeft(255);
-  delay(2000);
+  debugPulsosGiro(300, 255);
   stopAll();
   while (1);
 }
@@ -291,7 +291,7 @@ void turnRight(int s) {
   driveMotor(IN1_C, IN2_C, EN_C,  s, INV_C);
 }
 
-/*void debugPulsosGiro(int tempo_ms = 1000, int speed = 150) {
+void debugPulsosGiro(int tempo_ms, int speed) {
 
     Serial.println("\n=== DEBUG DE GIRO ===");
 
@@ -341,5 +341,5 @@ void turnRight(int s) {
     Serial.println(mediaDir);
 
     Serial.println("\nFIM DO DEBUG\n");
-}*/
+}
 
