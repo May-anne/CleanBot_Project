@@ -6,13 +6,13 @@
 // ---- DIREITA TRASEIRA (A)
 #define IN1_A 27
 #define IN2_A 14
-#define EN_A  13
+#define EN_A  21 //do 13 pro 21
 bool INV_A = true;
 
 // ---- ESQUERDA TRASEIRA (B)
 #define IN1_B 32
 #define IN2_B 33
-#define EN_B  12
+#define EN_B  22 //12 pro 22
 bool INV_B = true;
 
 // ---- ESQUERDA DIANTEIRA (C)
@@ -24,13 +24,13 @@ bool INV_C = true;
 // ---- DIREITA DIANTEIRA (D)
 #define IN1_D 4
 #define IN2_D 5
-#define EN_D  15
+#define EN_D  13
 bool INV_D = false;
 
 // ==================================================
 // ENCODERS
 // ==================================================
-#define LEFT_ENCODER_PIN 25
+#define LEFT_ENCODER_PIN 35
 #define RIGHT_ENCODER_PIN 26
 
 // ==================================================
@@ -42,7 +42,7 @@ bool INV_D = false;
 // ==================================================
 // MOTOR SERVO
 // ==================================================
-#define SERVO 2
+#define SERVO 25
 
 // ==================================================
 // CONSTANTES
@@ -79,7 +79,13 @@ void backward(int s = 255);
 void stopAll();
 void turnRightAngle(float graus, int speed = 200);
 void turnLeftAngle(float graus, int speed = 200); 
-void andarDistancia(float cm, int speed = 200);
+void walkDistance(float cm, int speed = 200);
+void readUltrasonic(int angle);
+void turnLeft(int s = 255);
+void turnRight(int s = 255);
+void scan();
+
+Servo servo;
 
 // ==================================================
 // SETUP
@@ -87,14 +93,26 @@ void andarDistancia(float cm, int speed = 200);
 
 void setup() {
   Serial.begin(115200);
+  servo.attach(25, 500, 2400);
+  servo.write(0);
+
+  ESP32PWM::allocateTimer(0);
+
+  ledcAttachChannel(EN_A, 15000, 8, 0);  // 15 kHz
+  ledcAttachChannel(EN_B, 15000, 8, 0);  // 15 kHz
+  ledcAttachChannel(EN_C, 15000, 8, 0);  // 15 kHz
+  ledcAttachChannel(EN_D, 15000, 8, 0);  // 15 kHz
 
   pinMode(IN1_A, OUTPUT); pinMode(IN2_A, OUTPUT); pinMode(EN_A, OUTPUT);
   pinMode(IN1_B, OUTPUT); pinMode(IN2_B, OUTPUT); pinMode(EN_B, OUTPUT);
   pinMode(IN1_C, OUTPUT); pinMode(IN2_C, OUTPUT); pinMode(EN_C, OUTPUT);
   pinMode(IN1_D, OUTPUT); pinMode(IN2_D, OUTPUT); pinMode(EN_D, OUTPUT);
 
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+
   pinMode(LEFT_ENCODER_PIN, INPUT);
-  pinMode(RIGHT_ENCODER_PIN, INPUT);
+  pinMode(RIGHT_ENCODER_PIN, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(LEFT_ENCODER_PIN), leftISR, RISING);
   attachInterrupt(digitalPinToInterrupt(RIGHT_ENCODER_PIN), rightISR, RISING);
@@ -110,13 +128,9 @@ void setup() {
 
 void loop() {
   //fazendo testes
+  turnLeft(255);
   delay(2000);
-
-  andarDistancia(30);
-  turnLeftAngle(90);
-
-  andarDistancia(30);
-  turnLeftAngle(180);
+  stopAll();
   while (1);
 }
 
@@ -178,7 +192,7 @@ void stopAll() {
 // ANDAR X DISTÂNCIA
 // ==================================================
 
-void andarDistancia(float cm, int speed) {
+void walkDistance(float cm, int speed) {
 
   float metros = cm / 100.0;
   float rot = metros / wheel_circ;
@@ -220,21 +234,64 @@ void turnRightAngle(float graus, int speed) {
   stopAll();
 }
 
-/*void turnLeft(int s = 255) {
+// ==================================================
+// SONAR
+// ==================================================
+void readUltrasonic(int angle) {
+  long duration;
+  int distance;
+
+  servo.write(angle);
+  delay(150); // tempo pra chegar no ângulo
+
+  // trigger
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  duration = pulseIn(ECHO, HIGH, 30000); // timeout 30ms
+  distance = duration * 0.034 / 2;
+
+  Serial.print("Angle: ");
+  Serial.print(angle);
+  Serial.print("°, Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+}
+
+// ==================================================
+// SCAN
+// ==================================================
+void scan() {
+  // varredura ida
+  for (int angle = 0; angle <= 180; angle += 10) {
+    readUltrasonic(angle);
+    delay(40);
+  }
+  // varredura volta
+  for (int angle = 180; angle >= 0; angle -= 10) {
+    readUltrasonic(angle);
+    delay(40);
+  }
+}
+
+void turnLeft(int s) {
   driveMotor(IN1_A, IN2_A, EN_A,  s, INV_A);
   driveMotor(IN1_D, IN2_D, EN_D,  s, INV_D);
   driveMotor(IN1_B, IN2_B, EN_B, -s, INV_B);
   driveMotor(IN1_C, IN2_C, EN_C, -s, INV_C);
 }
 
-void turnRight(int s = 255) {
+void turnRight(int s) {
   driveMotor(IN1_A, IN2_A, EN_A, -s, INV_A);
   driveMotor(IN1_D, IN2_D, EN_D, -s, INV_D);
   driveMotor(IN1_B, IN2_B, EN_B,  s, INV_B);
   driveMotor(IN1_C, IN2_C, EN_C,  s, INV_C);
 }
 
-void debugPulsosGiro(int tempo_ms = 1000, int speed = 150) {
+/*void debugPulsosGiro(int tempo_ms = 1000, int speed = 150) {
 
     Serial.println("\n=== DEBUG DE GIRO ===");
 
