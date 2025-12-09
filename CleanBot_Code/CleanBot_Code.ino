@@ -20,8 +20,7 @@ bool INV_C = true;
 bool INV_D = false;
 
 #define FAN_IN1 13
-#define FAN_IN2 22
-#define FAN_SPEED 255
+#define FAN_IN2 22    
 
 // ==================================================
 // SENSORES
@@ -51,8 +50,8 @@ const int DIST_WALL_MAX = 35;
 const int DIST_WALL_LOST = 80;
 const int ANGLE_WALL = 60;
 
-const int FAN_FREQ = 20000;   // Hz
-const int FAN_RES = 8;       // bits (0-255)
+const int FAN_FREQ = 20000;  
+const int FAN_RES = 8;  
 
 // ==================================================
 // ESTADOS
@@ -81,6 +80,7 @@ unsigned long wallLostTime = 0;
 const unsigned long WALL_LOST_TIMEOUT = 3000;
 
 bool fanEnabled = false;
+
 
 // Detecção de travamento
 struct StuckDetector {
@@ -608,9 +608,7 @@ void setup() {
   pinMode(FAN_IN1, OUTPUT);
   pinMode(FAN_IN2, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
-
-
-  ledcAttach(FAN_IN1, FAN_FREQ, FAN_RES);  // substitui ledcSetup + ledcAttachPin
+  ledcAttach(FAN_IN1, FAN_FREQ, FAN_RES);
   digitalWrite(FAN_IN2, LOW);
   ledcWrite(FAN_IN1, 0); 
 
