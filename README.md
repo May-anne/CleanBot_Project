@@ -33,6 +33,8 @@ A simulação do funcionamento do robô foi feita através do simulador Coppelia
 ### O Sistema de Navegação
 O robô utiliza uma máquina de estados reativa, inspirada no comportamento de um Roomba, para explorar o ambiente com autonomia. Cada estado define um padrão de movimentação baseado exclusivamente em motores, encoders e sensor ultrassônico. A troca de estados ocorre conforme a situação percebida ao redor.
 
+https://github.com/user-attachments/assets/815bdf32-3ef2-4a9b-8a26-3c226a07a5d6
+
 ### Estados Principais
 #### 1) SPIRAL
 O robô inicia descrevendo uma espiral crescente, ampliando gradualmente o raio de curva.
