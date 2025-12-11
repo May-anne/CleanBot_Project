@@ -29,8 +29,8 @@ bool INV_D = false;
 #define RIGHT_ENCODER_PIN 26
 #define TRIG 16
 #define ECHO 17
-#define SERVO 25
-#define BUZZER_PIN 15
+#define SERVO 21
+#define BUZZER_PIN 23
 
 // ==================================================
 // CONSTANTES
